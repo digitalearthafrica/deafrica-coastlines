@@ -1,6 +1,9 @@
-FROM osgeo/gdal:ubuntu-small-3.4.1 as base
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.7.3 AS base
 
-ENV CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+ENV DEBIAN_FRONTEND=noninteractive \
+    LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8 \
+    CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN apt-get update \
     && apt-get install -y \
@@ -17,24 +20,25 @@ RUN apt-get update \
     apt-get autoremove && \
     rm -rf /var/lib/{apt,dpkg,cache,log}
 
-COPY requirements.txt /tmp/
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r /tmp/requirements.txt \
-    --no-binary rasterio \
-    --no-binary shapely \
-    --no-binary fiona \
-    # Extras
-    && pip install --no-cache-dir awscli requests
-
-
-RUN mkdir -p /code
 WORKDIR /code
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir uv
+
+COPY requirements.in /code/requirements.in
+
+RUN uv pip compile requirements.in \
+        --extra-index-url https://packages.dea.ga.gov.au/ \
+        -o requirements.txt \
+    && uv pip install -r requirements.txt \
+        --extra-index-url https://packages.dea.ga.gov.au/ \
+        --system
 
 COPY . /code/
 
-RUN pip install /code
+RUN uv pip install . --system \
+    && uv pip check
 
 CMD ["python", "--version"]
 
-RUN  deafricacoastlines-raster --help \
-  && deafricacoastlines-vector --help
+RUN deafricacoastlines-raster --help \
+    && deafricacoastlines-vector --help

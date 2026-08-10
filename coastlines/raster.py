@@ -44,7 +44,7 @@ from datacube.virtual import catalog_from_file
 
 from dea_tools.dask import create_local_dask_cluster
 from dea_tools.spatial import interpolate_2d, hillshade, sun_angles
-from dea_tools.coastal import model_tides, pixel_tides
+from eo_tides.eo import pixel_tides
 from dea_tools.datahandling import parallel_apply
 
 from coastlines.utils import configure_logging, load_config
@@ -1026,7 +1026,15 @@ def export_annual_gapfill(ds, output_dir, tide_cutoff_min, tide_cutoff_max):
 
 
 def generate_rasters(
-    dc, config, study_area, raster_version, start_year, end_year, log=None
+    dc,
+    config,
+    study_area,
+    raster_version,
+    start_year,
+    end_year,
+    tide_model,
+    tide_model_dir,
+    log=None,
 ):
     #####################################
     # Connect to datacube, Dask cluster #
@@ -1090,8 +1098,13 @@ def generate_rasters(
     # Add  this new data as a new variable in our satellite dataset to allow
     # each satellite pixel to be analysed and filtered/masked based on the
     # tide height at the exact moment of satellite image acquisition.
-    ds["tide_m"], tides_lowres = pixel_tides(ds, resample=True, directory="/var/share")
-    log.info(f"Study area {study_area}: Finished modelling tide heights")
+    try:
+        ds["tide_m"] = pixel_tides(data=ds, model=tide_model, directory=tide_model_dir)
+        log.info("Finished modelling tide heights")
+
+    except FileNotFoundError:
+        log.exception("Unable to access tide modelling files")
+        sys.exit(2)
 
     # Based on the entire time-series of tide heights, compute the max
     # and min satellite-observed tide height for each pixel, then
@@ -1177,6 +1190,22 @@ def generate_rasters(
     "datacube after `--end_year`.",
 )
 @click.option(
+    "--tide_model",
+    type=str,
+    default="EOT20",
+    help="The model used for tide modelling, as supported by the "
+    "`eo-tides` Python package. Options include 'EOT20' (default), "
+    "'TPXO10-atlas-v2-nc', 'FES2022', 'FES2014', 'GOT5.6', 'ensemble'.",
+)
+@click.option(
+    "--tide_model_dir",
+    type=str,
+    default="/var/share/tide_models",
+    help="The directory containing tide model data files. Defaults to "
+    "'/var/share/tide_models'; for more information about the required "
+    "directory structure, refer to `eo-tides.utils.list_models`.",
+)
+@click.option(
     "--aws_unsigned/--no-aws_unsigned",
     type=bool,
     default=True,
@@ -1195,6 +1224,8 @@ def generate_rasters_cli(
     raster_version,
     start_year,
     end_year,
+    tide_model,
+    tide_model_dir,
     aws_unsigned,
     overwrite,
 ):
@@ -1229,6 +1260,8 @@ def generate_rasters_cli(
             raster_version,
             start_year,
             end_year,
+            tide_model,
+            tide_model_dir,
             log=log,
         )
     except Exception as e:
