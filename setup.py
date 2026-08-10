@@ -45,7 +45,7 @@ DESCRIPTION = "Tools for running Digital Earth Africa Coastlines"
 URL = "https://github.com/digitalearthafrica/deafrica-coastlines"
 EMAIL = "Robbi.BishopTaylor@ga.gov.au"
 AUTHOR = "Robbi Bishop-Taylor"
-REQUIRES_PYTHON = ">=3.8.0"
+REQUIRES_PYTHON = ">=3.10.0"
 
 # Setup kwargs
 setup_kwargs = {
