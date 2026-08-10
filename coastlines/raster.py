@@ -1026,7 +1026,15 @@ def export_annual_gapfill(ds, output_dir, tide_cutoff_min, tide_cutoff_max):
 
 
 def generate_rasters(
-    dc, config, study_area, raster_version, start_year, end_year, tide_model, tide_model_dir, log=None
+    dc,
+    config,
+    study_area,
+    raster_version,
+    start_year,
+    end_year,
+    tide_model,
+    tide_model_dir,
+    log=None,
 ):
     #####################################
     # Connect to datacube, Dask cluster #
